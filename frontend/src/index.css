@@ -1,0 +1,36 @@
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --color-forest: #164c36;
+  --color-leaf: #2e8056;
+  --color-lime: #d9edbd;
+  --color-cream: #f6f8f3;
+  --color-ink: #182820;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --shadow-card: 0 12px 34px rgba(27, 55, 39, .07);
+}
+
+:root { font-family: "DM Sans", sans-serif; color: #182820; background: #f6f8f3; font-synthesis: none; text-rendering: optimizeLegibility; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button, input, select, textarea { font: inherit; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #a5ce83; outline-offset: 2px; }
+h1, h2, h3, h4 { font-family: Manrope, sans-serif; }
+.card { @apply rounded-2xl bg-white shadow-card; }
+.btn-primary { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-forest px-4 py-2.5 font-semibold text-white transition hover:bg-leaf disabled:cursor-not-allowed disabled:opacity-50; }
+.btn-secondary { @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 font-semibold text-slate-700 transition hover:bg-slate-50; }
+.field { @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-ink placeholder:text-slate-400 focus:border-leaf focus:outline-none focus:ring-2 focus:ring-lime; }
+.muted { @apply text-sm text-slate-500; }
+.eyebrow { @apply text-xs font-bold uppercase tracking-[.14em] text-leaf; }
+.skeleton { @apply animate-pulse rounded-xl bg-slate-100; }
+::selection { background: #d9edbd; }
+.dark body { color: #e8f0e8; background: #101b15; }
+.dark .bg-cream { background-color: #101b15; }
+.dark .bg-white { background-color: #1a2b22; }
+.dark .text-ink { color: #e8f0e8; }
+.dark .text-slate-700, .dark .text-slate-600 { color: #c4d0c7; }
+.dark .text-slate-500, .dark .text-slate-400 { color: #95a69a; }
+.dark .border-slate-100, .dark .border-slate-200 { border-color: #304338; }
+.dark .bg-slate-50, .dark .bg-\[\#fbfcf9\] { background-color: #203128; }
+.dark .field { color: #e8f0e8; background-color: #1a2b22; border-color: #3a5143; }
