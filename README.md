@@ -2,7 +2,7 @@
 
 ### Detect Today, Healthier Crops Tomorrow.
 
-FarmShield AI is a farmer-friendly crop health decision-support prototype. It keeps farm observations and scans in one private workspace, supports tomato leaf image classification when compatible weights are configured, and separates provider-sourced weather facts from any explicitly documented risk rule.
+FarmShield AI is a farmer-friendly crop health decision-support prototype. It keeps farm observations and scans in one private workspace, provides tomato, mango, and chili crop records and educational references, supports tomato leaf image classification when compatible weights are configured, and separates provider-sourced weather facts from any explicitly documented risk rule.
 
 > **Honest AI by design:** no model weights are bundled. Without a configured model, a scan is saved without a prediction and the interface says **“AI model unavailable — demo mode is active.”** Weather is not fabricated when an API key is missing. Educational information is not a diagnosis or treatment recommendation.
 
@@ -13,10 +13,11 @@ Crop symptoms can be difficult to interpret, while scattered records and weather
 ## Features
 
 - Email/password registration, Argon2 password hashing, expiring JWTs, and per-user authorization.
-- Farm CRUD, coordinates, crop association, and private scan records.
+- Farm CRUD, browser-assisted current-location coordinates with manual editing, crop association, and private scan records.
 - JPEG/PNG/WEBP validation, EXIF orientation, size/dimension checks, basic image-quality warnings, upload preview, and browser camera capture.
 - Optional startup-loaded PyTorch/torchvision ResNet-18 or MobileNetV3-Small inference with configurable labels and an uncertainty threshold.
-- Tomato disease reference seeded from educational summaries with sources, symptoms, prevention, and safe next steps.
+- Tomato, mango, and chili disease references seeded as educational summaries with sources, symptoms, prevention, and safe next steps.
+- Mango and chili images can be saved as scan records; predictions remain unavailable until compatible, crop-specific model weights are configured and validated.
 - Optional OpenWeatherMap current conditions and forecast; no fabricated observations.
 - Empty-by-default, file-configurable, source-required risk rules. Without a validated rule, the app makes no weather-related disease claim.
 - Database-backed dashboard and analytics, scan filters/pagination, private image retrieval, PDF scan reports, and CSV export.
@@ -120,7 +121,7 @@ npm.cmd install
 npm.cmd run dev
 ```
 
-Open the Vite URL (normally <http://localhost:5173>). `VITE_API_URL` defaults to `http://127.0.0.1:8000`. Create an account from the app. The token is held in browser `sessionStorage` until the tab session ends; this is convenient for a student demo but remains exposed to JavaScript, so production should use an HttpOnly cookie and CSRF protection.
+Open the Vite URL (normally <http://localhost:5173>). `VITE_API_URL` defaults to `http://127.0.0.1:8000`. The backend CORS defaults allow Vite on ports 5173 and 4173. Create an account from the app. The token is held in browser `sessionStorage` until the tab session ends; this is convenient for a student demo but remains exposed to JavaScript, so production should use an HttpOnly cookie and CSRF protection.
 
 ### 3. Optional integrations
 
@@ -154,7 +155,7 @@ npm.cmd run build
 | `DATABASE_URL` | SQLAlchemy database URL | `sqlite:///./farmshield.db` |
 | `SECRET_KEY` | JWT signing key; 32+ characters required in production | development-only |
 | `ACCESS_TOKEN_MINUTES` | Bearer token lifetime | `60` |
-| `CORS_ORIGINS` | Comma-separated allowed origins | `http://localhost:5173` |
+| `CORS_ORIGINS` | Comma-separated allowed origins | Vite origins on ports 5173 and 4173 |
 | `MAX_UPLOAD_MB` | Image upload limit | `8` |
 | `UPLOAD_DIR` | Private local image directory | `uploads` |
 | `MODEL_PATH` | Local checkpoint path (empty disables inference) | empty |

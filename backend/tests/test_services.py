@@ -48,7 +48,7 @@ def test_malformed_model_output_is_rejected():
         shape = (2,)
 
     service.model = lambda _tensor: Tensor()
-    service.labels = ["a", "b"]
+    service.labels = ["Tomato___a", "Tomato___b"]
     service.status = "ready"
     service._torch = SimpleNamespace(Tensor=Tensor, inference_mode=nullcontext)
     service._transforms = SimpleNamespace(
@@ -61,16 +61,19 @@ def test_malformed_model_output_is_rejected():
 
 
 def test_valid_inference_returns_top_class_and_uncertainty_metadata():
-    class Logits:
-        ndim = 2
-        shape = (1, 2)
-
     class Value:
         def __init__(self, value):
             self.value = value
 
         def item(self):
             return self.value
+
+    class Logits:
+        ndim = 2
+        shape = (1, 2)
+
+        def __getitem__(self, _key):
+            return self
 
     torch_stub = SimpleNamespace(
         Tensor=Logits,
@@ -92,6 +95,60 @@ def test_valid_inference_returns_top_class_and_uncertainty_metadata():
     assert result["predicted_class"] == "Tomato___Early_blight"
     assert result["confidence"] == pytest.approx(0.82)
     assert result["status"] == "classified"
+
+
+def test_classifier_uses_only_labels_for_the_selected_crop():
+    class Logits:
+        ndim = 2
+        shape = (1, 3)
+
+        def __getitem__(self, _key):
+            return self
+
+    class Probabilities:
+        def __getitem__(self, _index):
+            return self
+
+    class Value:
+        def __init__(self, value):
+            self.value = value
+
+        def item(self):
+            return self.value
+
+    service = AIService()
+    service.model = lambda _tensor: Logits()
+    service.labels = ["Tomato___Early_blight", "Mango___Anthracnose", "Mango___Powdery_mildew"]
+    service.status = "ready"
+    service._torch = SimpleNamespace(
+        Tensor=Logits,
+        inference_mode=nullcontext,
+        softmax=lambda _logits, dim: [Probabilities()],
+        max=lambda _probabilities, dim: (Value(0.91), Value(1)),
+    )
+    service._transforms = SimpleNamespace(
+        Compose=lambda _steps: lambda _image: SimpleNamespace(unsqueeze=lambda _axis: object()),
+        Resize=lambda _size: object(), CenterCrop=lambda _size: object(), ToTensor=lambda: object(),
+        Normalize=lambda **_kwargs: object(),
+    )
+
+    result = service.analyze(Image.new("RGB", (224, 224)), "Mango")
+
+    assert result["predicted_class"] == "Mango___Powdery_mildew"
+    assert result["confidence"] == pytest.approx(0.91)
+
+
+def test_classifier_reports_crop_without_configured_labels_as_unavailable():
+    service = AIService()
+    service.model = lambda _tensor: None
+    service.labels = ["Tomato___healthy"]
+    service.status = "ready"
+
+    result = service.analyze(Image.new("RGB", (224, 224)), "Chili")
+
+    assert result["status"] == "unavailable"
+    assert result["predicted_class"] is None
+    assert "No validated Chili image-classification model" in result["warning"]
 
 
 def test_risk_engine_does_not_make_unsupported_claims():

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -27,56 +28,80 @@ oauth_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 ai_service: AIService | None = None
 
 EDUCATIONAL_DISEASES = [
-    ("Tomato___Bacterial_spot", "Bacterial spot", "Xanthomonas spp.",
+    ("Tomato", "Tomato___Bacterial_spot", "Bacterial spot", "Xanthomonas spp.",
      "Small, dark, water-soaked spots on leaves and fruit; lesions may develop yellow halos.",
      "Warm, wet weather and splashing water can favor spread; these signs can resemble other problems.",
      "Use clean seed and transplants, avoid working among wet plants, and rotate away from tomato where practical.",
      "Remove badly affected plant debris, reduce leaf wetness, and consult a local extension specialist for confirmation."),
-    ("Tomato___Early_blight", "Early blight", "Alternaria solani",
+    ("Tomato", "Tomato___Early_blight", "Early blight", "Alternaria solani",
      "Dark leaf lesions may show concentric rings and yellowing around older leaves.",
      "Prolonged leaf wetness and stressed plants can be associated with disease development.",
      "Use crop rotation, maintain airflow, and avoid overhead irrigation when feasible.",
      "Check several leaves and consult an agricultural expert; symptoms alone do not confirm the cause."),
-    ("Tomato___Late_blight", "Late blight", "Phytophthora infestans",
+    ("Tomato", "Tomato___Late_blight", "Late blight", "Phytophthora infestans",
      "Irregular water-soaked lesions can enlarge quickly; white growth may occur in humid conditions.",
      "Cool, humid weather is associated with outbreaks, but weather alone is not diagnostic.",
      "Use healthy planting material, monitor local advisories, and avoid prolonged leaf wetness.",
      "Seek prompt local expert advice if suspected, as this can spread rapidly."),
-    ("Tomato___Leaf_Mold", "Leaf mold", "Passalora fulva",
+    ("Tomato", "Tomato___Leaf_Mold", "Leaf mold", "Passalora fulva",
      "Pale green or yellow patches may appear on upper leaf surfaces with olive growth underneath.",
      "High humidity and limited airflow are commonly associated with leaf mold.",
      "Improve ventilation and avoid excess leaf wetness.",
      "Inspect leaf undersides and seek expert confirmation before treatment."),
-    ("Tomato___Septoria_leaf_spot", "Septoria leaf spot", "Septoria lycopersici",
+    ("Tomato", "Tomato___Septoria_leaf_spot", "Septoria leaf spot", "Septoria lycopersici",
      "Numerous small circular spots may have pale centers and dark margins, often on lower leaves.",
      "Wet foliage and plant debris can contribute to spread.",
      "Rotate crops, remove infected debris, and water at soil level where practical.",
      "Document symptoms and consult a local extension service for confirmation."),
-    ("Tomato___Spider_mites Two-spotted_spider_mite", "Two-spotted spider mite damage", "Tetranychus urticae",
+    ("Tomato", "Tomato___Spider_mites Two-spotted_spider_mite", "Two-spotted spider mite damage", "Tetranychus urticae",
      "Fine stippling, bronzing, and delicate webbing may occur on leaves.",
      "Hot, dry conditions can favor mite populations; look for mites under leaves.",
      "Encourage beneficial insects and avoid unnecessary broad-spectrum pesticide use.",
      "Confirm mites with a close inspection and ask a qualified adviser about locally appropriate controls."),
-    ("Tomato___Target_Spot", "Target spot", "Corynespora cassiicola",
+    ("Tomato", "Tomato___Target_Spot", "Target spot", "Corynespora cassiicola",
      "Brown lesions can develop concentric patterns on leaves and fruit.",
      "Warm, humid conditions and leaf wetness can be associated with disease development.",
      "Improve airflow and reduce leaf wetness; remove crop debris.",
      "Have uncertain symptoms assessed by an agricultural expert."),
-    ("Tomato___Tomato_Yellow_Leaf_Curl_Virus", "Tomato yellow leaf curl virus", "",
+    ("Tomato", "Tomato___Tomato_Yellow_Leaf_Curl_Virus", "Tomato yellow leaf curl virus", "",
      "Leaves may curl upward, yellow, and become smaller; plants may be stunted.",
      "Whitefly vectors spread the virus; similar symptoms can have other causes.",
      "Use healthy transplants and monitor whiteflies using locally recommended integrated pest management.",
      "Consult an expert for diagnosis and vector management; do not rely on this image result alone."),
-    ("Tomato___Tomato_mosaic_virus", "Tomato mosaic virus", "",
+    ("Tomato", "Tomato___Tomato_mosaic_virus", "Tomato mosaic virus", "",
      "Mottled light and dark green leaf patterns and distorted growth may appear.",
      "The virus can spread through contaminated hands, tools, and plant material.",
      "Use clean seed, sanitize tools, and remove infected plants according to local guidance.",
      "Seek expert confirmation and follow local disposal advice."),
-    ("Tomato___healthy", "Healthy tomato leaf", "",
+    ("Tomato", "Tomato___healthy", "Healthy tomato leaf", "",
      "No disease-associated pattern was identified by the configured classifier.",
      "An image classifier can miss disease and cannot assess the whole plant.",
      "Continue regular scouting and good crop hygiene.",
      "A healthy classification is not a guarantee; check the whole plant and consult an expert if symptoms persist."),
+    ("Mango", "Mango___Anthracnose", "Anthracnose", "Colletotrichum species complex",
+     "Dark, irregular leaf lesions or black spots on flowers and fruit may occur; symptoms vary with plant part and conditions.",
+     "Warm, wet or humid conditions can favor infection; similar damage can have other causes.",
+     "Use clean planting material, prune to improve airflow where appropriate, and remove fallen or visibly affected debris.",
+     "Photograph affected leaves, flowers, and fruit and seek local extension advice before treatment. This description is educational, not a diagnosis.",
+     "FarmShield educational summary; confirm with a local agricultural extension service"),
+    ("Mango", "Mango___Powdery_mildew", "Powdery mildew", "Oidium mangiferae",
+     "A pale, powdery growth may appear on young leaves, flower clusters, or developing fruit; affected flowers may fail to set fruit.",
+     "Conditions that favor the disease vary by region and crop stage; other issues can resemble it.",
+     "Monitor new growth and flowering and maintain good orchard sanitation.",
+     "Record which plant parts are affected and ask a local horticulture adviser to confirm the cause and suitable management.",
+     "FarmShield educational summary; confirm with a local agricultural extension service"),
+    ("Chili", "Chili___Anthracnose", "Anthracnose / fruit rot", "Colletotrichum species complex",
+     "Sunken dark lesions may develop on fruit; leaves or stems can also show spots in some cases.",
+     "Wet conditions can favor spread; visual symptoms alone cannot confirm the pathogen.",
+     "Use clean seed and planting material, avoid handling wet plants, and remove affected fruit and crop debris.",
+     "Inspect several plants and consult a local extension specialist for confirmation and locally appropriate advice.",
+     "FarmShield educational summary; confirm with a local agricultural extension service"),
+    ("Chili", "Chili___Leaf_curl", "Leaf curl symptoms", "Chilli leaf curl virus complex",
+     "Leaves may curl or become smaller, and plants may appear stunted; several pests, diseases, or growing conditions can cause similar signs.",
+     "Some viral leaf-curl diseases are associated with whitefly vectors, but symptoms alone cannot identify the cause.",
+     "Use healthy planting material and monitor plants for insects; follow local integrated pest-management guidance.",
+     "Photograph new and older growth and seek local extension advice. Do not treat this symptom description as a confirmed virus diagnosis.",
+     "FarmShield educational summary; confirm with a local agricultural extension service"),
 ]
 
 
@@ -147,9 +172,15 @@ def register(body: RegisterIn, db: Session = Depends(get_db)):
         raise HTTPException(status_code=409, detail="An account with this email already exists.")
     user = User(email=email, name=body.name.strip(), password_hash=hash_password(body.password))
     db.add(user)
-    db.flush()
-    db.add(UserPreference(user_id=user.id))
-    db.commit()
+    try:
+        db.flush()
+        db.add(UserPreference(user_id=user.id))
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        if db.scalar(select(User.id).where(User.email == email)):
+            raise HTTPException(status_code=409, detail="An account with this email already exists.") from exc
+        raise
     return {"access_token": create_access_token(user.id, user.token_version), "token_type": "bearer", "user": {"id": user.id, "email": user.email, "name": user.name}}
 
 
@@ -242,8 +273,10 @@ async def analyze_scan(
 ):
     if file.content_type not in {"image/jpeg", "image/png", "image/webp"}:
         raise HTTPException(status_code=415, detail="Upload a JPEG, PNG, or WEBP image.")
-    if crop.strip().casefold() != "tomato":
-        raise HTTPException(status_code=422, detail="The configured image-classification pipeline currently supports tomato only.")
+    supported_crops = {"tomato": "Tomato", "mango": "Mango", "chili": "Chili"}
+    normalized_crop = supported_crops.get(crop.strip().casefold())
+    if normalized_crop is None:
+        raise HTTPException(status_code=422, detail="Choose Tomato, Mango, or Chili for this scan.")
     max_bytes = settings.max_upload_mb * 1024 * 1024
     data = await file.read(max_bytes + 1)
     if len(data) > max_bytes:
@@ -254,13 +287,13 @@ async def analyze_scan(
     except InvalidImageError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     try:
-        result = classifier.analyze(prepared.image)
+        result = classifier.analyze(prepared.image, normalized_crop)
     except AIServiceError as exc:
         result = {"status": "error", "predicted_class": None, "confidence": None, "model_name": "unavailable", "warning": str(exc)}
     warning = "; ".join(part for part in (prepared.warning, result["warning"]) if part)
     scan = Scan(
         user_id=user.id, farm_id=farm.id if farm else None, image_path=prepared.filename,
-        crop=crop.strip(), predicted_class=result["predicted_class"], confidence=result["confidence"],
+        crop=normalized_crop, predicted_class=result["predicted_class"], confidence=result["confidence"],
         status=result["status"], model_name=result["model_name"], warning=warning,
     )
     db.add(scan)

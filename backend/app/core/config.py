@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     secret_key: str = "development-only-change-me"
     database_url: str = "sqlite:///./farmshield.db"
     access_token_minutes: int = 60
-    cors_origins: str = "http://localhost:5173"
+    cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173"
     upload_dir: Path = Path("uploads")
     max_upload_mb: int = 8
     model_path: str = ""

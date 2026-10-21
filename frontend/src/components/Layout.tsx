@@ -24,7 +24,7 @@ const secondary = [
 
 function NavItems({ close }: { close?: () => void }) {
   const t = useTranslation();
-  return <nav className="space-y-1">
+  return <nav aria-label="Main navigation" className="space-y-1">
     {links.map(({ to, key, icon: Icon }) => <NavLink onClick={close} key={to} to={to} className={({ isActive }) => `nav-item ${isActive ? "nav-item-active" : ""}`}>
       <Icon size={18} strokeWidth={1.8} /><span>{t[key as keyof typeof t]}</span>
     </NavLink>)}
@@ -60,10 +60,17 @@ export function Layout() {
         <NavLink to="/app/help" className="mt-3 inline-block text-xs font-bold text-lime">Photo tips <span aria-hidden>→</span></NavLink>
       </div>
     </aside>
-    {mobileOpen && <div className="fixed inset-0 z-40 bg-ink/30 lg:hidden" onClick={() => setMobileOpen(false)}>
-      <aside onClick={(event) => event.stopPropagation()} className="h-full w-[280px] bg-white p-4 shadow-xl">
-        <div className="mb-7 flex items-center justify-between"><Brand /><button aria-label="Close menu" onClick={() => setMobileOpen(false)}><X /></button></div>
-        <NavItems close={() => setMobileOpen(false)} />
+    {mobileOpen && <div className="fixed inset-0 z-40 bg-ink/40 backdrop-blur-[2px] lg:hidden" onClick={() => setMobileOpen(false)}>
+      <aside role="dialog" aria-modal="true" aria-label="Navigation menu" onClick={(event) => event.stopPropagation()} className="flex h-full w-[min(20rem,88vw)] flex-col bg-white p-4 shadow-2xl">
+        <div className="mb-6 flex items-center justify-between border-b border-slate-100 pb-5">
+          <Brand />
+          <button type="button" aria-label="Close menu" onClick={() => setMobileOpen(false)} className="grid h-10 w-10 place-items-center rounded-xl text-slate-500 transition hover:bg-slate-100 hover:text-ink">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto pb-4">
+          <NavItems close={() => setMobileOpen(false)} />
+        </div>
       </aside>
     </div>}
     <main className="min-h-screen min-w-0 flex-1 pb-24 lg:ml-[254px] lg:pb-8">
@@ -91,8 +98,8 @@ export function Layout() {
         </div>
       </header>
       <div className="mx-auto max-w-[1440px] px-4 py-7 sm:px-8 lg:px-10"><Outlet /></div>
-      <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-slate-200 bg-white px-2 pb-[env(safe-area-inset-bottom)] pt-2 lg:hidden">
-        {[...links.slice(0, 4), { to: "/app/analytics", key: "analytics", icon: BarChart3 }].map(({ to, key, icon: Icon }) => <NavLink key={to} to={to} className={({ isActive }) => `flex flex-col items-center gap-1 py-1 text-[10px] font-semibold ${isActive ? "text-leaf" : "text-slate-400"}`}>
+      <nav aria-label="Mobile navigation" className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-slate-200/80 bg-white/95 px-2 pb-[env(safe-area-inset-bottom)] pt-2 shadow-[0_-8px_24px_rgba(24,40,32,0.06)] backdrop-blur lg:hidden">
+        {[...links.slice(0, 4), { to: "/app/analytics", key: "analytics", icon: BarChart3 }].map(({ to, key, icon: Icon }) => <NavLink key={to} to={to} className={({ isActive }) => `flex min-h-12 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1 text-[10px] font-semibold transition-colors ${isActive ? "text-leaf" : "text-slate-400 hover:text-slate-700"}`}>
           <Icon size={19} /><span>{t[key as keyof typeof t]}</span>
         </NavLink>)}
       </nav>

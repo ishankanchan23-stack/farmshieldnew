@@ -24,12 +24,15 @@ TestSession = sessionmaker(bind=test_engine, autoflush=False, expire_on_commit=F
 
 @pytest.fixture
 def client():
+    from app.core import rate_limit
+    rate_limit._attempts.clear()
     Base.metadata.create_all(test_engine)
     with TestSession() as db:
         for record in EDUCATIONAL_DISEASES:
-            class_id, name, scientific, symptoms, conditions, prevention, next_steps = record
-            db.add(Disease(id=class_id, crop="Tomato", name=name, scientific_name=scientific, symptoms=symptoms,
-                           associated_conditions=conditions, prevention=prevention, next_steps=next_steps))
+            crop, class_id, name, scientific, symptoms, conditions, prevention, next_steps, *source_info = record
+            source = source_info[0] if source_info else "University of California Statewide IPM Program; educational summary"
+            db.add(Disease(id=class_id, crop=crop, name=name, scientific_name=scientific, symptoms=symptoms,
+                           associated_conditions=conditions, prevention=prevention, next_steps=next_steps, source=source))
         db.commit()
 
     def override_db():

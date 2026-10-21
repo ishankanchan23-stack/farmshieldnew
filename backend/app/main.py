@@ -21,13 +21,20 @@ async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as db:
         for record in routes.EDUCATIONAL_DISEASES:
-            class_id, name, scientific, symptoms, conditions, prevention, next_steps = record
-            if db.get(Disease, class_id) is None:
-                db.add(Disease(
-                    id=class_id, crop="Tomato", name=name, scientific_name=scientific,
-                    symptoms=symptoms, associated_conditions=conditions, prevention=prevention,
-                    next_steps=next_steps, source="University of California Statewide IPM Program; educational summary",
-                ))
+            crop, class_id, name, scientific, symptoms, conditions, prevention, next_steps, *source_info = record
+            source = source_info[0] if source_info else "University of California Statewide IPM Program; educational summary"
+            disease = db.get(Disease, class_id)
+            if disease is None:
+                disease = Disease(id=class_id)
+                db.add(disease)
+            disease.crop = crop
+            disease.name = name
+            disease.scientific_name = scientific
+            disease.symptoms = symptoms
+            disease.associated_conditions = conditions
+            disease.prevention = prevention
+            disease.next_steps = next_steps
+            disease.source = source
         db.commit()
     routes.ai_service = AIService()
     logger.info("Application ready; AI status=%s", routes.ai_service.status)

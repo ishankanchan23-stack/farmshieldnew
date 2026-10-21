@@ -56,3 +56,5 @@ export interface Overview {
   disease_distribution: { name: string; count: number }[];
   recent_scans: Scan[];
 }
+
+export { cropOptions, scanCropOptions } from "./crops";

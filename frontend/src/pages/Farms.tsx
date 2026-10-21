@@ -1,18 +1,25 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { MapPin, Pencil, Plus, Sprout, Trash2, X } from "lucide-react";
+import { LoaderCircle, MapPin, Pencil, Plus, Sprout, Trash2, X } from "lucide-react";
 import { apiClient, errorMessage } from "../lib/api";
 import { ErrorNotice, LoadingState, PageHeading } from "../components/ui";
 import type { Farm } from "../types";
+import { cropOptions } from "../types/crops";
+import { getCurrentLocation } from "../utils/geolocation";
 
 const farmSchema = z.object({
   name: z.string().min(2, "Farm name must be at least 2 characters.").max(100),
   location: z.string().max(160).default(""),
-  latitude: z.string().optional(),
-  longitude: z.string().optional(),
+  latitude: z.string().trim().optional().refine((value) => !value || (Number.isFinite(Number(value)) && Number(value) >= -90 && Number(value) <= 90), "Latitude must be between -90 and 90."),
+  longitude: z.string().trim().optional().refine((value) => !value || (Number.isFinite(Number(value)) && Number(value) >= -180 && Number(value) <= 180), "Longitude must be between -180 and 180."),
+}).superRefine((values, context) => {
+  if (Boolean(values.latitude?.trim()) !== Boolean(values.longitude?.trim())) {
+    const missingField = values.latitude?.trim() ? "longitude" : "latitude";
+    context.addIssue({ code: "custom", path: [missingField], message: "Enter both latitude and longitude, or leave both blank." });
+  }
 });
 type FarmValues = z.infer<typeof farmSchema>;
 
@@ -26,7 +33,11 @@ export function Farms() {
   const [cropName, setCropName] = useState("Tomato");
   const [cropVariety, setCropVariety] = useState("");
   const [cropSaving, setCropSaving] = useState(false);
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FarmValues>({ resolver: zodResolver(farmSchema), defaultValues: { name: "", location: "", latitude: "", longitude: "" } });
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationMessage, setLocationMessage] = useState("");
+  const [locationError, setLocationError] = useState("");
+  const autoLocationRequested = useRef(false);
+  const { register, handleSubmit, reset, setValue, getValues, formState: { errors, isSubmitting } } = useForm<FarmValues>({ resolver: zodResolver(farmSchema), defaultValues: { name: "", location: "", latitude: "", longitude: "" } });
 
   const fetchFarms = useCallback(async () => {
     try {
@@ -39,6 +50,34 @@ export function Farms() {
     finally { setLoading(false); }
   }, []);
   const load = useCallback(() => { setLoading(true); void fetchFarms(); }, [fetchFarms]);
+  const detectLocation = useCallback(async () => {
+    setLocationLoading(true);
+    setLocationError("");
+    setLocationMessage("");
+    try {
+      const coordinates = await getCurrentLocation();
+      if (!getValues("latitude")?.trim()) {
+        setValue("latitude", String(coordinates.latitude), { shouldValidate: true, shouldDirty: true });
+      }
+      if (!getValues("longitude")?.trim()) {
+        setValue("longitude", String(coordinates.longitude), { shouldValidate: true, shouldDirty: true });
+      }
+      setLocationMessage("Current location detected. Review the coordinates before saving your farm.");
+    } catch (failure) {
+      setLocationError(failure instanceof Error ? failure.message : "Could not detect your location. Enter coordinates manually.");
+    } finally {
+      setLocationLoading(false);
+    }
+  }, [getValues, setValue]);
+
+  // Request location once on entry. The button remains available for an explicit retry.
+  useEffect(() => {
+    if (autoLocationRequested.current || sessionStorage.getItem("farmshield_location_prompted") === "true") return;
+    autoLocationRequested.current = true;
+    sessionStorage.setItem("farmshield_location_prompted", "true");
+    void detectLocation();
+  }, [detectLocation]);
+
   // Fetching server data is this effect's external synchronization.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void fetchFarms(); }, [fetchFarms]);
@@ -52,8 +91,8 @@ export function Farms() {
     setError("");
     const payload = {
       name: values.name, location: values.location || "",
-      latitude: values.latitude ? Number(values.latitude) : null,
-      longitude: values.longitude ? Number(values.longitude) : null,
+      latitude: values.latitude?.trim() ? Number(values.latitude) : null,
+      longitude: values.longitude?.trim() ? Number(values.longitude) : null,
     };
     try {
       if (editing) await apiClient.updateFarm(editing, payload);
@@ -92,8 +131,11 @@ export function Farms() {
         <div className="mb-5 flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-lime text-forest"><Plus size={20} /></span><div><h2 className="font-bold">{editing ? "Edit farm" : "Add a farm"}</h2><p className="text-xs text-slate-500">Only your account can access these details.</p></div></div>
         <label className="mb-4 block text-sm font-semibold">Farm name<input className="field mt-2" {...register("name")} placeholder="e.g. North Field" />{errors.name && <span className="mt-1 block text-xs text-rose-700">{errors.name.message}</span>}</label>
         <label className="mb-4 block text-sm font-semibold">Location description<input className="field mt-2" {...register("location")} placeholder="Village, district" /></label>
-        <p className="mb-2 text-xs font-semibold text-slate-600">Coordinates for live weather (optional)</p>
-        <div className="mb-5 grid grid-cols-2 gap-3"><label className="text-xs text-slate-500">Latitude<input className="field mt-1" type="number" step="any" min="-90" max="90" {...register("latitude")} placeholder="18.5204" /></label><label className="text-xs text-slate-500">Longitude<input className="field mt-1" type="number" step="any" min="-180" max="180" {...register("longitude")} placeholder="73.8567" /></label></div>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-semibold text-slate-600">Coordinates for live weather (optional)</p><button type="button" className="btn-secondary !px-3 !py-2 text-xs" onClick={() => void detectLocation()} disabled={locationLoading}><MapPin size={15} />{locationLoading ? "Detecting location…" : "📍 Use My Current Location"}{locationLoading && <LoaderCircle className="animate-spin" size={15} />}</button></div>
+        <p className="mb-3 text-xs leading-5 text-slate-500">Your browser will ask permission to use your current location to fill these farm coordinates. They are sent to FarmShield only when you save the farm. You can edit them or enter them manually.</p>
+        {locationMessage && <p role="status" className="mb-3 text-sm text-emerald-700">{locationMessage}</p>}
+        {locationError && <p role="alert" className="mb-3 text-sm text-rose-700">{locationError}</p>}
+        <div className="mb-5 grid grid-cols-2 gap-3"><label className="text-xs text-slate-500">Latitude<input className="field mt-1" type="number" step="any" min="-90" max="90" {...register("latitude")} placeholder="Enter latitude" />{errors.latitude && <span className="mt-1 block text-xs text-rose-700">{errors.latitude.message}</span>}</label><label className="text-xs text-slate-500">Longitude<input className="field mt-1" type="number" step="any" min="-180" max="180" {...register("longitude")} placeholder="Enter longitude" />{errors.longitude && <span className="mt-1 block text-xs text-rose-700">{errors.longitude.message}</span>}</label></div>
         <button disabled={isSubmitting} className="btn-primary w-full">{isSubmitting ? "Saving…" : editing ? "Save changes" : "Add farm"}</button>
         {editing && <button type="button" className="btn-secondary mt-2 w-full" onClick={() => { setEditing(null); reset(); }}>Cancel edit</button>}
       </form>
@@ -111,7 +153,7 @@ export function Farms() {
             <button className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-leaf hover:underline" onClick={() => setAddingCropFor(addingCropFor === farm.id ? null : farm.id)}><Plus size={14} />Add crop</button>
           </div>
           {addingCropFor === farm.id && <form onSubmit={(event) => void addCrop(event, farm.id)} className="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
-            <label className="sr-only" htmlFor={`crop-${farm.id}`}>Crop type</label><select id={`crop-${farm.id}`} className="field" value={cropName} onChange={(event) => setCropName(event.target.value)}><option>Tomato</option><option>Bell Pepper</option><option>Potato</option><option>Apple</option><option>Corn</option><option>Grape</option></select>
+            <label className="sr-only" htmlFor={`crop-${farm.id}`}>Crop type</label><select id={`crop-${farm.id}`} className="field" value={cropName} onChange={(event) => setCropName(event.target.value)}>{cropOptions.map((crop) => <option key={crop}>{crop}</option>)}</select>
             <label className="sr-only" htmlFor={`variety-${farm.id}`}>Crop variety</label><input id={`variety-${farm.id}`} className="field" value={cropVariety} onChange={(event) => setCropVariety(event.target.value)} placeholder="Variety (optional)" />
             <div className="flex gap-2"><button disabled={cropSaving} className="btn-primary !px-3 !py-2 text-xs">{cropSaving ? "Saving…" : "Save crop"}</button><button type="button" aria-label="Cancel adding crop" className="btn-secondary !px-3 !py-2" onClick={() => setAddingCropFor(null)}><X size={15} /></button></div>
           </form>}

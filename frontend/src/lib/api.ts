@@ -1,8 +1,17 @@
 import axios from "axios";
 import type { Disease, Farm, Overview, Page, Scan, User } from "../types";
 
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+const apiBaseUrl = configuredApiUrl
+  ? /^https?:\/\//i.test(configuredApiUrl)
+    ? configuredApiUrl
+    : `https://${configuredApiUrl.replace(/^\/+/, "")}`
+  : import.meta.env.DEV
+    ? "http://127.0.0.1:8000"
+    : "";
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://127.0.0.1:8000",
+  baseURL: apiBaseUrl,
   timeout: 15000,
 });
 
@@ -14,8 +23,23 @@ api.interceptors.request.use((config) => {
 
 export function errorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
-    const detail = error.response?.data?.detail;
-    return typeof detail === "string" ? detail : error.message || "Unable to reach FarmShield. Check that the API is running.";
+    const data: unknown = error.response?.data;
+    if (data && typeof data === "object" && "detail" in data) {
+      const detail = data.detail;
+      if (typeof detail === "string") return detail;
+      if (Array.isArray(detail)) {
+        const messages = detail.flatMap((issue: unknown) => {
+          if (!issue || typeof issue !== "object" || !("msg" in issue) || typeof issue.msg !== "string") return [];
+          const location = "loc" in issue && Array.isArray(issue.loc)
+            ? issue.loc.filter((part): part is string => typeof part === "string" && part !== "body").join(".")
+            : "";
+          return [location ? `${location}: ${issue.msg}` : issue.msg];
+        });
+        if (messages.length) return messages.join(" ");
+      }
+    }
+    if (!error.response) return "Cannot connect to the FarmShield API. Start the backend and check VITE_API_URL.";
+    return error.message || "Unable to complete the request.";
   }
   return error instanceof Error ? error.message : "Something went wrong.";
 }
@@ -84,8 +108,8 @@ export const apiClient = {
     const { data } = await api.get<{ id: string; farm_id: string; name: string; variety: string; farm_name: string }[]>("/api/v1/crops");
     return data;
   },
-  async diseases(search?: string) {
-    const { data } = await api.get<Disease[]>("/api/v1/diseases", { params: search ? { search, crop: "Tomato" } : { crop: "Tomato" } });
+  async diseases(search?: string, crop = "Tomato") {
+    const { data } = await api.get<Disease[]>("/api/v1/diseases", { params: { crop, ...(search ? { search } : {}) } });
     return data;
   },
   async weather(farmId: string) {

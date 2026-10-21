@@ -1,10 +1,11 @@
 from datetime import datetime
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints
 
 
 class RegisterIn(BaseModel):
-    name: str = Field(min_length=2, max_length=100)
+    name: Annotated[str, StringConstraints(min_length=2, max_length=100, strip_whitespace=True)]
     email: EmailStr
     password: str = Field(min_length=10, max_length=128)
 

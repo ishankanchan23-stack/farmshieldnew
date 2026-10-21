@@ -4,6 +4,7 @@ import { apiClient, errorMessage } from "../lib/api";
 import { ErrorNotice, LoadingState, PageHeading, StatusBadge } from "../components/ui";
 import { ScanThumbnail } from "../components/ScanThumbnail";
 import type { Page, Scan } from "../types";
+import { scanCropOptions } from "../types/crops";
 
 export function History() {
   const [page, setPage] = useState<Page<Scan> | null>(null);
@@ -43,7 +44,7 @@ export function History() {
     <section className="card mb-5 p-4">
       <div className="grid gap-3 md:grid-cols-[1.4fr_1fr_1fr]">
         <label className="relative"><span className="sr-only">Search scans</span><Search className="absolute left-3 top-3 text-slate-400" size={17} /><input className="field pl-10" placeholder="Search crop or result…" value={search} onChange={(event) => { setPageNumber(1); setSearch(event.target.value); }} /></label>
-        <select aria-label="Filter by crop" className="field" value={crop} onChange={(event) => { setPageNumber(1); setCrop(event.target.value); }}><option value="">All crops</option><option value="Tomato">Tomato</option></select>
+        <select aria-label="Filter by crop" className="field" value={crop} onChange={(event) => { setPageNumber(1); setCrop(event.target.value); }}><option value="">All crops</option>{scanCropOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select>
         <input aria-label="Filter by disease" className="field" placeholder="Filter by disease…" value={disease} onChange={(event) => { setPageNumber(1); setDisease(event.target.value); }} />
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-slate-500"><CalendarDays size={16} /><label>From <input aria-label="Start date" className="ml-1 rounded-lg border border-slate-200 px-2 py-1.5" type="date" value={startDate} onChange={(event) => { setPageNumber(1); setStartDate(event.target.value); }} /></label><label>To <input aria-label="End date" className="ml-1 rounded-lg border border-slate-200 px-2 py-1.5" type="date" value={endDate} onChange={(event) => { setPageNumber(1); setEndDate(event.target.value); }} /></label></div>

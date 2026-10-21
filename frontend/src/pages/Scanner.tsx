@@ -6,6 +6,7 @@ import { AlertTriangle, Camera, Check, Download, ImagePlus, LoaderCircle, Rotate
 import { apiClient, errorMessage } from "../lib/api";
 import { ErrorNotice, PageHeading, StatusBadge, TransparentModelNote } from "../components/ui";
 import type { Farm, Scan } from "../types";
+import { scanCropOptions } from "../types/crops";
 import { validateImageFile } from "../utils/scanner-validation";
 import { useTranslation } from "../app/i18n-context";
 
@@ -117,9 +118,10 @@ export function Scanner() {
         <div className="flex items-center gap-3"><span className="grid h-10 w-10 place-items-center rounded-xl bg-lime text-forest"><ScanLine size={20} /></span><div><h2 className="font-bold">Add an observation</h2><p className="text-xs text-slate-500">Images are validated and reoriented before inference.</p></div></div>
         <form onSubmit={handleSubmit(submit)} className="mt-6 space-y-5">
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm font-semibold">Crop<select className="field mt-2" {...register("crop")}><option value="Tomato">Tomato</option></select>{errors.crop && <span className="mt-1 block text-xs text-rose-700">{errors.crop.message}</span>}</label>
+            <label className="block text-sm font-semibold">Crop<select className="field mt-2" {...register("crop")}>{scanCropOptions.map((crop) => <option key={crop} value={crop}>{crop}</option>)}</select>{errors.crop && <span className="mt-1 block text-xs text-rose-700">{errors.crop.message}</span>}</label>
             <label className="block text-sm font-semibold">Farm <span className="font-normal text-slate-400">(optional)</span><select className="field mt-2" {...register("farmId")}><option value="">Not associated</option>{farms.map((farm) => <option key={farm.id} value={farm.id}>{farm.name}</option>)}</select>{errors.farmId && <span className="mt-1 block text-xs text-rose-700">{errors.farmId.message}</span>}</label>
           </div>
+          <p className="text-xs leading-5 text-slate-500">Tomato is the only crop with a configured classifier. Mango and Chili photos are saved for your records, but no AI disease prediction is currently available for them.</p>
           {farms.length === 0 && <p className="text-xs text-slate-500">Add a farm first if you want to attach a location to this scan.</p>}
           {file && preview ? <div className="relative overflow-hidden rounded-2xl bg-slate-50">
             <img src={preview} alt="Selected crop leaf preview" className="mx-auto max-h-[440px] w-full object-contain" />

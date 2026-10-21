@@ -64,14 +64,23 @@ class AIService:
             self.status = "error"
             self.detail = f"Configured model could not be loaded: {exc}"
 
-    def analyze(self, image: Image.Image) -> dict[str, Any]:
+    def analyze(self, image: Image.Image, crop: str = "Tomato") -> dict[str, Any]:
         if self.model is None:
             return {
                 "status": "unavailable" if self.status == "unavailable" else "error",
                 "predicted_class": None,
                 "confidence": None,
                 "model_name": "unavailable",
-                "warning": self.detail,
+                "warning": self.detail if crop == "Tomato" else f"No validated {crop} image-classification model is configured. {self.detail}",
+            }
+        class_indices = [index for index, label in enumerate(self.labels) if label.startswith(f"{crop}___")]
+        if not class_indices:
+            return {
+                "status": "unavailable",
+                "predicted_class": None,
+                "confidence": None,
+                "model_name": "unavailable",
+                "warning": f"No validated {crop} image-classification model is configured.",
             }
         try:
             transform = self._transforms.Compose(
@@ -91,10 +100,11 @@ class AIService:
                     raise AIServiceError("Model output must be a [1, class_count] tensor.")
                 if logits.shape[1] != len(self.labels):
                     raise AIServiceError("Model output count does not match the configured class labels.")
-                probabilities = self._torch.softmax(logits, dim=1)[0]
+                crop_logits = logits[:, class_indices]
+                probabilities = self._torch.softmax(crop_logits, dim=1)[0]
                 confidence, index = self._torch.max(probabilities, dim=0)
                 score = float(confidence.item())
-                label = self.labels[int(index.item())]
+                label = self.labels[class_indices[int(index.item())]]
             uncertain = score < settings.confidence_threshold
             return {
                 "status": "uncertain" if uncertain else "classified",

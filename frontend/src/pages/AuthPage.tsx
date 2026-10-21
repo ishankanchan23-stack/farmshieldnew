@@ -9,9 +9,14 @@ import { errorMessage } from "../lib/api";
 import { Brand } from "../components/Layout";
 
 const schema = z.object({
-  name: z.string().min(2, "Enter your name.").max(100).optional(),
+  name: z.string().trim().min(2, "Enter your name.").max(100).optional(),
   email: z.string().email("Enter a valid email address."),
   password: z.string().min(10, "Use at least 10 characters.").max(128),
+});
+const registerSchema = schema.superRefine((values, context) => {
+  if (!values.name) {
+    context.addIssue({ code: "custom", path: ["name"], message: "Enter your name." });
+  }
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -20,7 +25,9 @@ export function AuthPage({ mode }: { mode: "login" | "register" }) {
   const navigate = useNavigate();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const { register: field, handleSubmit, formState: { errors } } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  const { register: field, handleSubmit, formState: { errors } } = useForm<FormValues>({
+    resolver: zodResolver(mode === "register" ? registerSchema : schema),
+  });
   if (user) return <Navigate to="/app/dashboard" replace />;
 
   async function submit(values: FormValues) {
