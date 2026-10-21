@@ -1,5 +1,7 @@
 # FarmShield AI
 
+> Existing repository title retained: `# farmshieldnew`.
+
 ### Detect Today, Healthier Crops Tomorrow.
 
 FarmShield AI is a farmer-friendly crop health decision-support prototype. It keeps farm observations and scans in one private workspace, provides tomato, mango, and chili crop records and educational references, supports tomato leaf image classification when compatible weights are configured, and separates provider-sourced weather facts from any explicitly documented risk rule.
