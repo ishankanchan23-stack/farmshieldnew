@@ -179,6 +179,11 @@ docker compose up --build
 
 The compose credentials are local-development placeholders and must not be reused in a deployment. For local SQLite, follow the non-Docker steps above.
 
+## Vercel multi-service deployment
+
+The root [`vercel.json`](vercel.json) defines a `backend` FastAPI service and a `frontend` Vite service. Requests under `/api/` are routed to the backend; all other paths are routed to the frontend for the single-page app. The frontend uses same-origin `/api/...` requests when `VITE_API_URL` is unset, so do not set that variable in Vercel for this configuration.
+
+Before deploying, configure `SECRET_KEY` with a random value of at least 32 characters and `DATABASE_URL` for a persistent PostgreSQL database (for example, `postgresql+psycopg://...`). Vercel's function filesystem and the app's default SQLite database and local upload directory are not durable storage; scan uploads also need persistent object storage for production. Set `OPENWEATHER_API_KEY` only if weather lookups are needed. Because the frontend and API share an origin, the `/api/` rewrite does not require adding a Vercel domain to `CORS_ORIGINS`.
 ## Security, known limitations, and future work
 
 FarmShield is a student prototype, not a validated diagnostic product. No pretrained weight file is bundled or certified; the default project can record scans but cannot classify until a compatible checkpoint is supplied. Tomato disease notes are educational summaries. Risk rules are disabled by default. Weather forecast and camera operation require a configured provider and browser permission respectively. Profile editing, password reset, offline/PWA support, Grad-CAM, and public deployment hardening are not implemented. See [`docs/security.md`](docs/security.md).
