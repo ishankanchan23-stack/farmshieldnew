@@ -1,12 +1,13 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import AliasChoices, Field, field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     app_env: str = "development"
+    is_vercel: bool = Field(default=False, validation_alias="VERCEL")
     secret_key: str = "development-only-change-me"
     database_url: str = Field(
         default="sqlite:///./farmshield.db",
@@ -43,17 +44,18 @@ class Settings(BaseSettings):
             return value.replace("postgresql://", "postgresql+psycopg://", 1)
         return value
 
-    @model_validator(mode="after")
-    def validate_production_secret(self) -> "Settings":
-        if self.app_env.lower() == "production" and (
-            self.secret_key == "development-only-change-me" or len(self.secret_key) < 32
-        ):
-            raise ValueError("Production requires a SECRET_KEY with at least 32 characters.")
-        return self
-
     @property
     def allowed_origins(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+
+
+def validate_deployment_settings(settings: Settings) -> None:
+    if not (settings.is_vercel or settings.app_env.lower() == "production"):
+        return
+    if not settings.database_url.startswith("postgresql+psycopg://"):
+        raise RuntimeError("Vercel and production deployments require a persistent PostgreSQL database URL.")
+    if settings.secret_key == "development-only-change-me" or len(settings.secret_key) < 32:
+        raise RuntimeError("Vercel and production deployments require a SECRET_KEY with at least 32 characters.")
 
 
 @lru_cache
@@ -62,3 +64,4 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+validate_deployment_settings(settings)
