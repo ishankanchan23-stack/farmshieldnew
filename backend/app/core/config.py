@@ -1,14 +1,17 @@
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     app_env: str = "development"
     secret_key: str = "development-only-change-me"
-    database_url: str = "sqlite:///./farmshield.db"
+    database_url: str = Field(
+        default="sqlite:///./farmshield.db",
+        validation_alias=AliasChoices("DATABASE_URL", "POSTGRES_URL_NON_POOLING", "POSTGRES_URL"),
+    )
     access_token_minutes: int = 60
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173"
     upload_dir: Path = Path("uploads")
@@ -29,6 +32,15 @@ class Settings(BaseSettings):
     def validate_threshold(cls, value: float) -> float:
         if not 0 < value <= 1:
             raise ValueError("CONFIDENCE_THRESHOLD must be greater than 0 and at most 1")
+        return value
+
+    @field_validator("database_url")
+    @classmethod
+    def normalize_database_url(cls, value: str) -> str:
+        if value.startswith("postgres://"):
+            return value.replace("postgres://", "postgresql+psycopg://", 1)
+        if value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+psycopg://", 1)
         return value
 
     @model_validator(mode="after")
